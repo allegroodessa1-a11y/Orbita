@@ -1,0 +1,738 @@
+<!doctype html>
+<html lang="ru">
+<head>
+<meta charset="utf-8">
+<meta name="viewport" content="width=device-width,initial-scale=1,viewport-fit=cover">
+<meta name="theme-color" content="#0e1117">
+<link rel="manifest" href="manifest.webmanifest">
+<link rel="icon" href="icon-192.png">
+<link rel="apple-touch-icon" href="icon-192.png">
+<style>:root{padding-top:env(safe-area-inset-top,0px);padding-bottom:env(safe-area-inset-bottom,0px)}body{margin:0}[hidden]{display:none!important}</style>
+</head>
+<body>
+<title>Орбита</title>
+<link rel="stylesheet" href="https://fonts.googleapis.com/css2?family=Unbounded:wght@400;600&family=Onest:wght@400;500;600&family=JetBrains+Mono:wght@400;500&display=swap">
+<style>
+/* Layout: one column — круговая сцена сверху, транспорт, плейлист, стойки параметров */
+:root{
+  --bg:#f1f3f6; --panel:#ffffff; --panel-2:#e7ebf0; --line:#d3d9e2;
+  --fg:#161a22; --dim:#5a6374; --accent:#2a8c7e; --warm:#b56d2b;
+  --display:'Unbounded','Onest',system-ui,sans-serif;
+  --body:'Onest',system-ui,-apple-system,'Segoe UI',sans-serif;
+  --mono:'JetBrains Mono',ui-monospace,Menlo,monospace;
+}
+@media (prefers-color-scheme:dark){:root:not([data-theme="light"]){
+  --bg:#0e1117; --panel:#161a23; --panel-2:#1e2330; --line:#2a3141;
+  --fg:#e7ebf2; --dim:#8e97a9; --accent:#76c6b8; --warm:#e3a86e; color-scheme:dark;
+}}
+:root[data-theme="dark"]{
+  --bg:#0e1117; --panel:#161a23; --panel-2:#1e2330; --line:#2a3141;
+  --fg:#e7ebf2; --dim:#8e97a9; --accent:#76c6b8; --warm:#e3a86e; color-scheme:dark;
+}
+*{box-sizing:border-box}
+body{background:var(--bg);color:var(--fg);font-family:var(--body);line-height:1.5;
+  padding-left:max(16px,env(safe-area-inset-left,0px));
+  padding-right:max(16px,env(safe-area-inset-right,0px));
+  padding-block:24px 48px;}
+.wrap{max-width:640px;margin:0 auto;display:flex;flex-direction:column;gap:16px;}
+header{display:flex;flex-direction:column;gap:6px}
+h1{font-family:var(--display);font-weight:600;font-size:clamp(1.9rem,7vw,2.6rem);margin:0;line-height:1.05;letter-spacing:-.01em;text-wrap:balance}
+header p{margin:0;color:var(--dim);max-width:52ch;font-size:.95rem}
+.panel{background:var(--panel);border:1px solid var(--line);border-radius:14px;padding:16px;display:flex;flex-direction:column;gap:14px;min-width:0}
+h2{font-family:var(--mono);font-size:.7rem;font-weight:500;letter-spacing:.16em;text-transform:uppercase;color:var(--dim);margin:0}
+
+/* сцена */
+.stage{position:relative;padding:0;overflow:hidden}
+#scene{display:block;width:100%;height:auto;aspect-ratio:1/0.82;max-width:100%}
+.stage .tag{position:absolute;left:14px;top:12px;font-family:var(--mono);font-size:.7rem;color:var(--dim);letter-spacing:.1em}
+.stage .deg{position:absolute;right:14px;top:12px;font-family:var(--mono);font-size:.75rem;color:var(--dim);font-variant-numeric:tabular-nums}
+
+/* транспорт */
+.transport{display:flex;align-items:center;gap:12px;min-width:0}
+.btn-round{flex:0 0 auto;border:none;cursor:pointer;display:grid;place-items:center;border-radius:50%;background:transparent;color:var(--fg)}
+.btn-round svg{fill:currentColor}
+#prev,#next{width:40px;height:40px}
+#prev svg,#next svg{width:18px;height:18px}
+#play{width:56px;height:56px;background:var(--fg);color:var(--panel);transition:transform .12s}
+#play:active{transform:scale(.94)}
+#play svg{width:22px;height:22px}
+.meta{flex:1;min-width:0}
+.title{font-weight:600;overflow:hidden;text-overflow:ellipsis;white-space:nowrap}
+.time{font-family:var(--mono);font-size:.78rem;color:var(--dim);font-variant-numeric:tabular-nums}
+input[type=range]{width:100%;accent-color:var(--accent)}
+.vol{display:flex;align-items:center;gap:10px;font-size:.85rem;color:var(--dim)}
+.vol input{flex:1}
+
+/* плейлист */
+.list{list-style:none;margin:0;padding:0;display:flex;flex-direction:column;gap:2px;max-height:260px;overflow:auto}
+.list li{display:flex;align-items:center;gap:6px;border-radius:9px}
+.list li.cur{background:var(--panel-2)}
+.list .pick{flex:1;min-width:0;text-align:left;background:none;border:none;color:var(--fg);font:inherit;padding:8px 10px;cursor:pointer;display:flex;gap:10px;align-items:baseline}
+.list .pick .n{font-family:var(--mono);font-size:.72rem;color:var(--dim);width:1.6em;flex:0 0 auto;font-variant-numeric:tabular-nums}
+.list li.cur .pick .n{color:var(--accent)}
+.list .pick .t{overflow:hidden;text-overflow:ellipsis;white-space:nowrap}
+.list .pick .k{font-family:var(--mono);font-size:.68rem;color:var(--dim);margin-left:auto;flex:0 0 auto}
+.list .del{background:none;border:none;color:var(--dim);cursor:pointer;font-size:1.1rem;padding:4px 10px;border-radius:8px}
+.list .del:hover{color:var(--fg)}
+.row-btns{display:flex;gap:8px;flex-wrap:wrap}
+.add{display:inline-flex;align-items:center;gap:8px;padding:9px 14px;border-radius:10px;background:var(--accent);color:var(--panel);font-weight:600;cursor:pointer;font-size:.9rem}
+.pickwrap{position:relative;overflow:hidden}
+.fpick{position:absolute;inset:0;width:100%;height:100%;opacity:0;cursor:pointer;font-size:100px}
+.ghost{padding:9px 14px;border-radius:10px;border:1px solid var(--line);background:transparent;color:var(--fg);font:inherit;font-size:.9rem;cursor:pointer}
+.err{color:var(--warm);font-size:.85rem;margin:0}
+
+/* параметры */
+.ctl{display:flex;flex-direction:column;gap:6px}
+.ctl .lab{display:flex;justify-content:space-between;gap:10px;font-size:.9rem}
+.ctl .val{font-family:var(--mono);color:var(--dim);font-size:.8rem;font-variant-numeric:tabular-nums}
+.seg{display:flex;gap:6px;flex-wrap:wrap}
+.seg button{flex:1 1 0;min-width:0;padding:9px 8px;border-radius:10px;border:1px solid var(--line);background:transparent;color:var(--dim);font:inherit;font-size:.85rem;cursor:pointer;line-height:1.25}
+.seg button small{display:block;font-family:var(--mono);font-size:.68rem;opacity:.8}
+.seg button[aria-pressed=true]{background:var(--fg);color:var(--panel);border-color:var(--fg)}
+.sw{display:flex;align-items:center;justify-content:space-between;gap:12px}
+.toggle{padding:7px 16px;border-radius:999px;border:1px solid var(--line);background:transparent;color:var(--dim);font:inherit;font-size:.85rem;cursor:pointer}
+.toggle[aria-pressed=true]{background:var(--accent);border-color:var(--accent);color:var(--panel)}
+.band{color:var(--accent)}
+.note{font-size:.84rem;color:var(--dim);margin:0;max-width:62ch}
+:focus-visible{outline:2px solid var(--accent);outline-offset:2px}
+</style>
+
+<div class="wrap">
+  <header>
+    <h1>Орбита</h1>
+    <p>Плеер для наушников: звук облетает голову по кругу (8D) или качается из уха в ухо, а снизу можно подмешать бинауральные биения.</p>
+  </header>
+
+  <div class="panel stage">
+    <canvas id="scene" width="640" height="525" aria-label="Положение звука вокруг головы"></canvas>
+    <span class="tag" id="modeTag">8D · КРУГ</span>
+    <span class="deg" id="deg">0°</span>
+  </div>
+
+  <div class="panel">
+    <div class="transport">
+      <button class="btn-round" id="prev" aria-label="Предыдущий"><svg viewBox="0 0 24 24"><path d="M6 5h2v14H6zM20 5v14L9 12z"/></svg></button>
+      <button class="btn-round" id="play" aria-label="Воспроизвести"><svg viewBox="0 0 24 24" id="playIcon"><path d="M8 5v14l11-7z"/></svg></button>
+      <button class="btn-round" id="next" aria-label="Следующий"><svg viewBox="0 0 24 24"><path d="M16 5h2v14h-2zM4 5v14l11-7z"/></svg></button>
+      <div class="meta">
+        <div class="title" id="title">—</div>
+        <div class="time" id="time">0:00 / 0:00</div>
+      </div>
+    </div>
+    <input id="seek" type="range" min="0" max="1000" value="0" aria-label="Позиция в треке">
+    <div class="add pickwrap" style="justify-content:center">♫ Выбрать музыку с устройства
+      <input class="fpick" id="files" type="file" multiple aria-label="Выбрать музыку с устройства">
+    </div>
+    <div class="vol"><label for="vol">Громкость</label><input id="vol" type="range" min="0" max="100"><span class="val" id="volV"></span></div>
+  </div>
+
+  <div class="panel">
+    <h2>Плейлист</h2>
+    <ul class="list" id="list"></ul>
+    <div class="row-btns">
+      <div class="add pickwrap">+ Добавить треки
+        <input class="fpick" id="files2" type="file" multiple aria-label="Добавить треки">
+      </div>
+      <button class="ghost" id="repeat">Повтор: весь список</button>
+    </div>
+    <p class="err" id="err" hidden></p>
+    <p class="note">Можно выбрать сразу несколько треков; нажми на трек в списке, чтобы включить его. Файлы играют прямо в браузере и никуда не загружаются, после перезагрузки страницы их нужно добавить снова. Если кнопка выбора не открывается, открой ссылку в обычном браузере (Chrome, Safari): внутри некоторых приложений выбор файлов закрыт.</p>
+  </div>
+
+  <div class="panel">
+    <h2>Слои поверх музыки</h2>
+    <div id="layers" style="display:flex;flex-direction:column;gap:12px"></div>
+    <div class="row-btns"><button class="ghost" id="layersOff">Выключить все слои</button></div>
+    <p class="note">Слои играют одновременно с треком и друг с другом и крутятся вместе с ним. Можно включить их и без трека, только как фон.</p>
+  </div>
+
+  <div class="panel">
+    <h2>Движение</h2>
+    <div class="seg" id="mode">
+      <button data-m="orbit">8D круг<small>вокруг головы</small></button>
+      <button data-m="pend">Маятник<small>левое ↔ правое</small></button>
+    </div>
+    <div class="ctl">
+      <div class="lab"><label for="period">Один оборот</label><span class="val" id="periodV"></span></div>
+      <input id="period" type="range" min="4" max="40" step="0.5">
+    </div>
+    <div class="ctl" id="heightBox">
+      <div class="lab"><label for="height">Подъём над головой</label><span class="val" id="heightV"></span></div>
+      <input id="height" type="range" min="0" max="100">
+    </div>
+    <div class="ctl" id="widthBox">
+      <div class="lab"><label for="width">Ширина качания</label><span class="val" id="widthV"></span></div>
+      <input id="width" type="range" min="10" max="100">
+    </div>
+    <div class="ctl">
+      <div class="lab"><label for="wet">Объём зала</label><span class="val" id="wetV"></span></div>
+      <input id="wet" type="range" min="0" max="60">
+    </div>
+  </div>
+
+  <div class="panel">
+    <h2>Бинауральный слой</h2>
+    <div class="sw"><span>Тоны в левое и правое ухо</span><button class="toggle" id="binOn">Выкл</button></div>
+    <div class="seg" id="presets">
+      <button data-b="2">Сон<small>2 Гц · дельта</small></button>
+      <button data-b="6">Медитация<small>6 Гц · тета</small></button>
+      <button data-b="10">Отдых<small>10 Гц · альфа</small></button>
+      <button data-b="16">Фокус<small>16 Гц · бета</small></button>
+      <button data-b="40">Гамма<small>40 Гц · пульс</small></button>
+    </div>
+    <div class="ctl">
+      <div class="lab"><label for="beat">Частота биения</label><span class="val"><span id="beatV"></span> · <span class="band" id="bandV"></span></span></div>
+      <input id="beat" type="range" min="1" max="40" step="0.5">
+    </div>
+    <div class="ctl">
+      <div class="lab"><label for="carrier">Несущий тон</label><span class="val" id="carrierV"></span></div>
+      <input id="carrier" type="range" min="100" max="400" step="5">
+    </div>
+    <div class="ctl">
+      <div class="lab"><label for="binVol">Громкость тонов</label><span class="val" id="binVolV"></span></div>
+      <input id="binVol" type="range" min="1" max="40">
+    </div>
+    <p class="note">Левое ухо слышит несущий тон, правое — тон выше на частоту биения; разницу мозг воспринимает как пульсацию. Тоны не крутятся вместе с музыкой, иначе эффект пропадёт. От 30 Гц включается пульс: тон мигает громкостью в обоих ушах, потому что бинауральную разницу выше ~30 Гц ухо почти не слышит. Лучше всего изучена частота 40 Гц: в опытах MIT по часу в день, эффект на людях ещё проверяют. Для остальных частот доказательства слабые. Работает только в наушниках. Это обработка звука, а не лечение.</p>
+  </div>
+</div>
+
+<audio id="audio" preload="metadata" hidden></audio>
+
+<script>
+(function(){
+  var $=function(id){return document.getElementById(id);};
+  var audio=$("audio");
+
+  // ---------- настройки ----------
+  var S={mode:"orbit",period:10,height:30,width:90,wet:20,vol:85,binOn:false,beat:6,carrier:200,binVol:10,repeat:"all",layers:{noise:0,fridge:0,cat:0,bowls:0,pad:0}};
+  try{var saved=JSON.parse(localStorage.getItem("orbita-v1")||"{}");for(var k in saved){if(k in S)S[k]=saved[k];}}catch(e){}
+  function save(){try{localStorage.setItem("orbita-v1",JSON.stringify(S));}catch(e){}}
+
+  // ---------- плейлист ----------
+  var list=[
+    {kind:"gen",gen:"pad",name:"Демо · тёплый пэд"},
+    {kind:"gen",gen:"noise",name:"Демо · дождевой шум"},
+    {kind:"gen",gen:"fridge",name:"Демо · старый холодильник"},
+    {kind:"gen",gen:"cat",name:"Демо · мурчащий кот"},
+    {kind:"gen",gen:"bowls",name:"Демо · поющие чаши"}
+  ];
+  var idx=0,playing=false;
+  var LAYERS=["noise","fridge","cat","bowls","pad"],
+      LNAME={noise:"Дождь",fridge:"Старый холодильник",cat:"Кот мурчит",bowls:"Поющие чаши",pad:"Тёплый пэд"};
+
+  // ---------- аудиограф ----------
+  var ctx=null,inBus,panner,stereo,gOrbit,gPend,dry,wet,conv,master,ana,
+      oX,oZ,oY,oP,gZ,gY,gW,bL,bR,binG,isoG,isoC,isoAM,isoL,legacy=false,
+      t0=0,ph0=0,curF=0.1;
+
+  function makeIR(){
+    var rate=ctx.sampleRate,len=Math.floor(rate*2.4),b=ctx.createBuffer(2,len,rate);
+    for(var ch=0;ch<2;ch++){var d=b.getChannelData(ch);for(var i=0;i<len;i++)d[i]=(Math.random()*2-1)*Math.pow(1-i/len,2.8);}
+    return b;
+  }
+  function build(){
+    if(ctx) return;
+    var AC=window.AudioContext||window.webkitAudioContext;
+    ctx=new AC();
+    inBus=ctx.createGain();
+    ctx.createMediaElementSource(audio).connect(inBus);
+
+    panner=ctx.createPanner();
+    panner.panningModel="HRTF"; panner.distanceModel="inverse";
+    panner.refDistance=1; panner.rolloffFactor=0;
+    stereo=ctx.createStereoPanner();
+    gOrbit=ctx.createGain(); gPend=ctx.createGain();
+    inBus.connect(panner); panner.connect(gOrbit);
+    inBus.connect(stereo); stereo.connect(gPend);
+
+    dry=ctx.createGain(); wet=ctx.createGain(); conv=ctx.createConvolver(); conv.buffer=makeIR();
+    master=ctx.createGain();
+    [gOrbit,gPend].forEach(function(g){g.connect(dry);g.connect(conv);});
+    conv.connect(wet); dry.connect(master); wet.connect(master);
+    ana=ctx.createAnalyser(); ana.fftSize=256;
+    master.connect(ana); ana.connect(ctx.destination);
+
+    // движение задают генераторы прямо на параметрах — работает и в фоне
+    var sinW=ctx.createPeriodicWave(new Float32Array([0,0]),new Float32Array([0,1]));
+    var cosW=ctx.createPeriodicWave(new Float32Array([0,1]),new Float32Array([0,0]));
+    oX=ctx.createOscillator(); oX.setPeriodicWave(sinW);
+    oZ=ctx.createOscillator(); oZ.setPeriodicWave(cosW);
+    oY=ctx.createOscillator(); oY.setPeriodicWave(sinW);
+    oP=ctx.createOscillator(); oP.setPeriodicWave(sinW);
+    gZ=ctx.createGain(); gZ.gain.value=-1;
+    gY=ctx.createGain(); gW=ctx.createGain();
+    if(panner.positionX){
+      panner.positionX.value=0; panner.positionY.value=0; panner.positionZ.value=0;
+      oX.connect(panner.positionX);
+      oZ.connect(gZ); gZ.connect(panner.positionZ);
+      oY.connect(gY); gY.connect(panner.positionY);
+    }else{ legacy=true; }
+    oP.connect(gW); gW.connect(stereo.pan);
+    curF=1/S.period;
+    oX.frequency.value=oZ.frequency.value=oP.frequency.value=curF;
+    oY.frequency.value=curF/3;
+    var start=ctx.currentTime+0.05;
+    [oX,oZ,oY,oP].forEach(function(o){o.start(start);});
+    t0=start; ph0=0;
+    if(legacy){
+      setInterval(function(){
+        var p=phaseAt(ctx.currentTime)*2*Math.PI,h=S.height/100*0.8;
+        panner.setPosition(Math.sin(p),h*Math.sin(p/3),-Math.cos(p));
+      },40);
+    }
+
+    // бинауральные тоны идут мимо панорамы
+    binG=ctx.createGain(); binG.gain.value=0;
+    var merger=ctx.createChannelMerger(2);
+    bL=ctx.createOscillator(); bR=ctx.createOscillator();
+    bL.connect(merger,0,0); bR.connect(merger,0,1);
+    merger.connect(binG); binG.connect(master);
+    bL.start(); bR.start();
+    // пульс (изохронный тон) для частот от 30 Гц
+    isoG=ctx.createGain(); isoG.gain.value=0;
+    isoC=ctx.createOscillator(); isoAM=ctx.createGain(); isoAM.gain.value=0.5;
+    isoL=ctx.createOscillator(); var isoD=ctx.createGain(); isoD.gain.value=0.5;
+    isoL.connect(isoD); isoD.connect(isoAM.gain);
+    isoC.connect(isoAM); isoAM.connect(isoG); isoG.connect(master);
+    isoC.start(); isoL.start();
+
+    applyAll(); syncLayers();
+  }
+  function phaseAt(t){ return t<t0?ph0:ph0+(t-t0)*curF; }
+  function setPeriod(){
+    if(!ctx) return;
+    var now=ctx.currentTime;
+    ph0=phaseAt(now); t0=now; curF=1/S.period;
+    [oX,oZ,oP].forEach(function(o){o.frequency.setValueAtTime(curF,now);});
+    oY.frequency.setValueAtTime(curF/3,now);
+  }
+  function ramp(p,v){ p.setTargetAtTime(v,ctx.currentTime,.08); }
+  function applyAll(){
+    if(!ctx) return;
+    ramp(gOrbit.gain,S.mode==="orbit"?1:0);
+    ramp(gPend.gain,S.mode==="pend"?1:0);
+    ramp(gY.gain,S.height/100*0.8);
+    ramp(gW.gain,S.width/100);
+    ramp(wet.gain,S.wet/100);
+    ramp(dry.gain,1-S.wet/100*0.4);
+    ramp(master.gain,Math.pow(S.vol/100,1.6));
+    bL.frequency.setTargetAtTime(S.carrier,ctx.currentTime,.05);
+    bR.frequency.setTargetAtTime(S.carrier+S.beat,ctx.currentTime,.05);
+    var iso=S.beat>=30;
+    ramp(binG.gain,S.binOn&&!iso?S.binVol/100*0.35:0);
+    isoC.frequency.setTargetAtTime(S.carrier,ctx.currentTime,.05);
+    isoL.frequency.setTargetAtTime(S.beat,ctx.currentTime,.05);
+    ramp(isoG.gain,S.binOn&&iso?S.binVol/100*0.35:0);
+  }
+
+  // ---------- демо-генераторы ----------
+  function noiseBuf(){
+    var len=ctx.sampleRate*4,b=ctx.createBuffer(2,len,ctx.sampleRate);
+    for(var ch=0;ch<2;ch++){var d=b.getChannelData(ch),b0=0,b1=0,b2=0;
+      for(var i=0;i<len;i++){var w=Math.random()*2-1;
+        b0=0.99765*b0+w*0.0990460;b1=0.96300*b1+w*0.2965164;b2=0.57000*b2+w*1.0526913;
+        d[i]=(b0+b1+b2+w*0.1848)*0.2;}}
+    return b;
+  }
+  var nbCache=null;
+  function nb(){ if(!nbCache) nbCache=noiseBuf(); return nbCache; }
+  function rattle(out){
+    // дребезг полки: короткий звон, раз в несколько секунд
+    var t=ctx.currentTime,dur=0.25+Math.random()*0.6;
+    var s=ctx.createBufferSource(); s.buffer=nb(); s.loop=true;
+    var bp=ctx.createBiquadFilter(); bp.type="bandpass"; bp.frequency.value=1800+Math.random()*1600; bp.Q.value=9;
+    var env=ctx.createGain(); env.gain.value=0;
+    var trem=ctx.createOscillator(); trem.frequency.value=50; var tg=ctx.createGain(); tg.gain.value=0.5;
+    trem.connect(tg); tg.connect(env.gain);
+    env.gain.setValueAtTime(0,t); env.gain.linearRampToValueAtTime(0.5,t+0.03); env.gain.exponentialRampToValueAtTime(0.001,t+dur);
+    s.connect(bp); bp.connect(env); env.connect(out);
+    s.start(t,Math.random()*3); s.stop(t+dur+0.05); trem.start(t); trem.stop(t+dur+0.05);
+  }
+  // удар по чаше: негармоничные обертоны с биением, верхние гаснут быстрее
+  var BOWLS=[130.8,146.8,174.6,196.0,220.0,261.6],lastBowl=-1;
+  function strikeBowl(out){
+    var k; do{ k=Math.floor(Math.random()*BOWLS.length); }while(k===lastBowl); lastBowl=k;
+    var f=BOWLS[k],t=ctx.currentTime+0.02,vel=0.6+Math.random()*0.4;
+    [[1,0.5,22,0.9],[2.71,0.28,14,1.6],[5.15,0.12,8,2.3],[8.43,0.05,4,3.1]].forEach(function(p){
+      [0,p[3]].forEach(function(det,j){
+        var o=ctx.createOscillator(); o.type="sine"; o.frequency.value=f*p[0]+det;
+        var g=ctx.createGain(); g.gain.value=0;
+        g.gain.setValueAtTime(0,t); g.gain.linearRampToValueAtTime(p[1]*vel*(j?0.8:1),t+0.008);
+        g.gain.exponentialRampToValueAtTime(0.0001,t+p[2]);
+        o.connect(g); g.connect(out); o.start(t); o.stop(t+p[2]+0.1);
+      });
+    });
+    // стук колотушки
+    var s=ctx.createBufferSource(); s.buffer=nb();
+    var hp=ctx.createBiquadFilter(); hp.type="bandpass"; hp.frequency.value=f*6; hp.Q.value=2;
+    var e=ctx.createGain(); e.gain.setValueAtTime(0.25*vel,t); e.gain.exponentialRampToValueAtTime(0.0001,t+0.06);
+    s.connect(hp); hp.connect(e); e.connect(out); s.start(t,Math.random()*3); s.stop(t+0.1);
+  }
+  // один звук-генератор: свой фильтр и громкость, возвращает stop()
+  function makeGen(kind,dest){
+    var flt=ctx.createBiquadFilter(); flt.type="lowpass"; flt.Q.value=0.7;
+    var out=ctx.createGain(); out.gain.value=0;
+    flt.connect(out); out.connect(dest);
+    var nodes=[],timer=null,level=0.5;
+    function loopEvery(fn,min,spread){ (function loop(){ timer=setTimeout(function(){ fn(flt); loop(); },min+Math.random()*spread); })(); }
+    if(kind==="bowls"){
+      flt.frequency.value=12000; level=0.55;
+      strikeBowl(flt); loopEvery(strikeBowl,6000,6000);
+    }else if(kind==="cat"){
+      flt.frequency.value=900; level=1.6;
+      // шум горла, нарезанный импульсами ~25 Гц — так устроено настоящее мурлыканье
+      var cs=ctx.createBufferSource(); cs.buffer=nb(); cs.loop=true;
+      var clp=ctx.createBiquadFilter(); clp.type="lowpass"; clp.frequency.value=420;
+      var cbp=ctx.createBiquadFilter(); cbp.type="peaking"; cbp.frequency.value=130; cbp.gain.value=9;
+      var am=ctx.createGain(); am.gain.value=0;
+      var pulse=ctx.createOscillator(); pulse.frequency.value=25;
+      var shp=ctx.createWaveShaper(), curve=new Float32Array(256);
+      for(var ci=0;ci<256;ci++){var xx=ci/127.5-1;curve[ci]=Math.pow((xx+1)/2,4);}
+      shp.curve=curve; pulse.connect(shp); shp.connect(am.gain);
+      // вдох-выдох: громкость и темп слегка дышат
+      var breath=ctx.createGain(); breath.gain.value=0.65;
+      var bre=ctx.createOscillator(); bre.frequency.value=0.32;
+      var bdep=ctx.createGain(); bdep.gain.value=0.35; bre.connect(bdep); bdep.connect(breath.gain);
+      var brate=ctx.createGain(); brate.gain.value=2; bre.connect(brate); brate.connect(pulse.frequency);
+      cs.connect(clp); clp.connect(cbp); cbp.connect(am); am.connect(breath); breath.connect(flt);
+      cs.start(); pulse.start(); bre.start(); nodes.push(cs,pulse,bre);
+    }else if(kind==="fridge"){
+      flt.frequency.value=700; level=0.5;
+      // сетевой гул 50 Гц с гармониками + рокот компрессора
+      [[50,0.30],[100,0.22],[150,0.08],[200,0.05],[300,0.025]].forEach(function(h){
+        var o=ctx.createOscillator(); o.type="sine"; o.frequency.value=h[0];
+        var g=ctx.createGain(); g.gain.value=h[1];
+        o.connect(g); g.connect(flt); o.start(); nodes.push(o);
+      });
+      var r=ctx.createBufferSource(); r.buffer=nb(); r.loop=true;
+      var lp=ctx.createBiquadFilter(); lp.type="lowpass"; lp.frequency.value=180;
+      var rg=ctx.createGain(); rg.gain.value=0.9;
+      r.connect(lp); lp.connect(rg); rg.connect(flt); r.start(); nodes.push(r);
+      // мотор слегка «плавает»
+      var wob=ctx.createOscillator(); wob.frequency.value=0.23; var wg=ctx.createGain(); wg.gain.value=0.12;
+      var wm=ctx.createGain(); wm.gain.value=1; flt.disconnect(); flt.connect(wm); wm.connect(out);
+      wob.connect(wg); wg.connect(wm.gain); wob.start(); nodes.push(wob);
+      loopEvery(rattle,3000,7000);
+    }else if(kind==="noise"){
+      flt.frequency.value=1400; level=0.6;
+      var n=ctx.createBufferSource(); n.buffer=noiseBuf(); n.loop=true;
+      n.connect(flt); n.start(); nodes.push(n);
+    }else{
+      flt.frequency.value=1800; level=0.45;
+      [110,164.81,220,277.18,329.63].forEach(function(f,i){
+        var o=ctx.createOscillator(); o.type=i%2?"sine":"triangle";
+        o.frequency.value=f; o.detune.value=(i-2)*6;
+        var g=ctx.createGain(); g.gain.value=[0.26,0.16,0.13,0.08,0.06][i];
+        o.connect(g); g.connect(flt); o.start(); nodes.push(o);
+      });
+    }
+    out.gain.setTargetAtTime(level,ctx.currentTime,.4);
+    return {stop:function(){
+      if(timer){ clearTimeout(timer); timer=null; }
+      out.gain.setTargetAtTime(0,ctx.currentTime,.08);
+      setTimeout(function(){
+        nodes.forEach(function(x){try{x.stop();}catch(e){}});
+        try{out.disconnect();}catch(e){}
+      },600);
+    }};
+  }
+  var mainGen=null;
+  function stopGen(){ if(mainGen){ mainGen.stop(); mainGen=null; } }
+  function startGen(kind){ stopGen(); mainGen=makeGen(kind,inBus); }
+
+  // ---------- слои поверх ----------
+  var layerGen={},layerGain={};
+  function syncLayers(){
+    if(!ctx) return;
+    LAYERS.forEach(function(k){
+      var v=S.layers[k]||0;
+      if(!layerGain[k]){ layerGain[k]=ctx.createGain(); layerGain[k].connect(inBus); }
+      layerGain[k].gain.setTargetAtTime(Math.pow(v/100,1.5),ctx.currentTime,.1);
+      if(v>0 && !layerGen[k]) layerGen[k]=makeGen(k,layerGain[k]);
+      if(v===0 && layerGen[k]){ layerGen[k].stop(); delete layerGen[k]; }
+    });
+  }
+
+  // ---------- воспроизведение ----------
+  var ICON_PLAY='<path d="M8 5v14l11-7z"/>',ICON_PAUSE='<path d="M6 5h4v14H6zM14 5h4v14h-4z"/>';
+  function fmt(s){if(!isFinite(s))return"0:00";var m=Math.floor(s/60),x=Math.floor(s%60);return m+":"+(x<10?"0":"")+x;}
+  function showErr(msg){var e=$("err");e.textContent=msg;e.hidden=!msg;}
+
+  function playIdx(i){
+    build(); if(ctx.state==="suspended") ctx.resume();
+    showErr("");
+    idx=(i+list.length)%list.length;
+    var it=list[idx];
+    if(it.kind==="gen"){
+      audio.pause(); startGen(it.gen); playing=true;
+    }else{
+      stopGen();
+      if(audio.src!==it.url){ audio.src=it.url; }
+      audio.play().catch(function(){ showErr("Не получилось запустить «"+it.name+"». Попробуй mp3 или m4a."); });
+    }
+    render(); session();
+  }
+  function pause(){
+    var it=list[idx];
+    if(it.kind==="gen"){ stopGen(); playing=false; } else { audio.pause(); }
+    render(); session();
+  }
+  function toggle(){
+    if(playing){ pause(); return; }
+    var it=list[idx];
+    if(it.kind==="file" && audio.src===it.url && ctx){
+      if(ctx.state==="suspended") ctx.resume();
+      audio.play().catch(function(){});
+    }else playIdx(idx);
+  }
+  function next(){ playIdx(idx+1); }
+  function prev(){
+    if(list[idx].kind==="file" && audio.currentTime>3){ audio.currentTime=0; return; }
+    playIdx(idx-1);
+  }
+
+  audio.addEventListener("play",function(){ if(list[idx].kind==="file"){playing=true;render();session();} });
+  audio.addEventListener("pause",function(){ if(list[idx].kind==="file"){playing=false;render();session();} });
+  audio.addEventListener("error",function(){ if(list[idx] && list[idx].kind==="file") showErr("Браузер не смог открыть «"+list[idx].name+"». Попробуй mp3 или m4a."); });
+  audio.addEventListener("ended",function(){
+    if(S.repeat==="one"){ audio.currentTime=0; audio.play().catch(function(){}); return; }
+    if(S.repeat==="off" && idx===list.length-1){ playing=false; render(); return; }
+    next();
+  });
+  audio.addEventListener("loadedmetadata",updTime);
+  audio.addEventListener("timeupdate",updTime);
+  var seeking=false;
+  function updTime(){
+    var it=list[idx];
+    if(!it) return;
+    if(it.kind==="gen"){ $("time").textContent="демо · играет без конца"; $("seek").disabled=true; $("seek").value="0"; return; }
+    $("seek").disabled=false;
+    $("time").textContent=fmt(audio.currentTime)+" / "+fmt(audio.duration);
+    if(!seeking && audio.duration) $("seek").value=String(audio.currentTime/audio.duration*1000);
+  }
+  $("seek").addEventListener("input",function(){seeking=true;});
+  $("seek").addEventListener("change",function(){
+    if(audio.duration) audio.currentTime=parseFloat(this.value)/1000*audio.duration;
+    seeking=false;
+  });
+
+  $("play").addEventListener("click",toggle);
+  $("next").addEventListener("click",next);
+  $("prev").addEventListener("click",prev);
+  document.addEventListener("keydown",function(e){
+    if(e.code==="Space" && !/INPUT|BUTTON|TEXTAREA/.test(e.target.tagName)){ e.preventDefault(); toggle(); }
+  });
+
+  // ---------- файлы ----------
+  function onFiles(){
+    var fs=Array.prototype.slice.call(this.files||[]);
+    if(!fs.length) return;
+    var first=list.length;
+    fs.forEach(function(f){ list.push({kind:"file",name:f.name.replace(/\.[^.]+$/,""),url:URL.createObjectURL(f)}); });
+    this.value="";
+    if(!playing) playIdx(first); else render();
+  }
+  $("files").addEventListener("change",onFiles);
+  $("files2").addEventListener("change",onFiles);
+
+  function render(){
+    var ul=$("list"); ul.innerHTML="";
+    list.forEach(function(it,i){
+      var li=document.createElement("li"); if(i===idx) li.className="cur";
+      var b=document.createElement("button"); b.className="pick"; b.type="button";
+      var n=document.createElement("span"); n.className="n"; n.textContent=(i===idx&&playing)?"▶":String(i+1);
+      var t=document.createElement("span"); t.className="t"; t.textContent=it.name;
+      b.appendChild(n); b.appendChild(t);
+      if(it.kind==="gen"){var k=document.createElement("span");k.className="k";k.textContent="демо";b.appendChild(k);}
+      b.addEventListener("click",function(){ playIdx(i); });
+      li.appendChild(b);
+      if(it.kind==="file"){
+        var d=document.createElement("button"); d.className="del"; d.type="button";
+        d.setAttribute("aria-label","Убрать «"+it.name+"»"); d.textContent="×";
+        d.addEventListener("click",function(){ removeAt(i); });
+        li.appendChild(d);
+      }
+      ul.appendChild(li);
+    });
+    var it=list[idx];
+    $("title").textContent=it?it.name:"—";
+    $("playIcon").innerHTML=playing?ICON_PAUSE:ICON_PLAY;
+    $("play").setAttribute("aria-label",playing?"Пауза":"Воспроизвести");
+    $("repeat").textContent="Повтор: "+({all:"весь список",one:"один трек",off:"выкл"})[S.repeat];
+    updTime();
+  }
+  function removeAt(i){
+    var it=list[i];
+    if(i===idx){ if(it.kind==="file"){audio.pause();audio.removeAttribute("src");audio.load();} playing=false; }
+    URL.revokeObjectURL(it.url);
+    list.splice(i,1);
+    if(idx>i) idx--;
+    if(idx>=list.length) idx=0;
+    render();
+  }
+  $("repeat").addEventListener("click",function(){
+    S.repeat=({all:"one",one:"off",off:"all"})[S.repeat]; save(); render();
+  });
+
+  // ---------- экран блокировки ----------
+  function session(){
+    if(!("mediaSession" in navigator)) return;
+    try{
+      navigator.mediaSession.metadata=new MediaMetadata({title:list[idx].name,artist:"Орбита · "+(S.mode==="orbit"?"8D круг":"маятник")});
+      navigator.mediaSession.playbackState=playing?"playing":"paused";
+    }catch(e){}
+  }
+  if("mediaSession" in navigator){
+    try{
+      navigator.mediaSession.setActionHandler("play",toggle);
+      navigator.mediaSession.setActionHandler("pause",toggle);
+      navigator.mediaSession.setActionHandler("nexttrack",next);
+      navigator.mediaSession.setActionHandler("previoustrack",prev);
+    }catch(e){}
+  }
+
+  // ---------- контролы ----------
+  function band(b){return b<4?"дельта":b<8?"тета":b<13?"альфа":b<30?"бета":"гамма · пульс";}
+  function syncUI(){
+    $("period").value=S.period; $("periodV").textContent=S.period.toFixed(1)+" с";
+    $("height").value=S.height; $("heightV").textContent=S.height+" %";
+    $("width").value=S.width; $("widthV").textContent=S.width+" %";
+    $("wet").value=S.wet; $("wetV").textContent=S.wet+" %";
+    $("vol").value=S.vol; $("volV").textContent=S.vol+" %";
+    $("beat").value=S.beat; $("beatV").textContent=S.beat.toFixed(1)+" Гц"; $("bandV").textContent=band(S.beat);
+    $("carrier").value=S.carrier; $("carrierV").textContent=S.carrier+" Гц";
+    $("binVol").value=S.binVol; $("binVolV").textContent=S.binVol+" %";
+    $("binOn").setAttribute("aria-pressed",String(S.binOn)); $("binOn").textContent=S.binOn?"Вкл":"Выкл";
+    Array.prototype.forEach.call($("mode").children,function(b){b.setAttribute("aria-pressed",String(b.dataset.m===S.mode));});
+    Array.prototype.forEach.call($("presets").children,function(b){b.setAttribute("aria-pressed",String(parseFloat(b.dataset.b)===S.beat));});
+    $("heightBox").hidden=S.mode!=="orbit";
+    $("widthBox").hidden=S.mode!=="pend";
+    $("modeTag").textContent=S.mode==="orbit"?"8D · КРУГ":"МАЯТНИК · Л ↔ П";
+  }
+  function bindRange(id,key,isFloat,after){
+    $(id).addEventListener("input",function(){
+      S[key]=isFloat?parseFloat(this.value):parseInt(this.value,10);
+      syncUI(); if(after) after(); else applyAll(); save();
+    });
+  }
+  bindRange("period","period",true,setPeriod);
+  bindRange("height","height");
+  bindRange("width","width");
+  bindRange("wet","wet");
+  bindRange("vol","vol");
+  bindRange("beat","beat",true);
+  bindRange("carrier","carrier");
+  bindRange("binVol","binVol");
+  Array.prototype.forEach.call($("mode").children,function(b){
+    b.addEventListener("click",function(){ S.mode=b.dataset.m; syncUI(); applyAll(); save(); session(); });
+  });
+  Array.prototype.forEach.call($("presets").children,function(b){
+    b.addEventListener("click",function(){
+      S.beat=parseFloat(b.dataset.b); S.binOn=true;
+      build(); if(ctx.state==="suspended") ctx.resume();
+      syncUI(); applyAll(); save();
+    });
+  });
+  $("binOn").addEventListener("click",function(){
+    S.binOn=!S.binOn; build(); if(ctx.state==="suspended") ctx.resume();
+    syncUI(); applyAll(); save();
+  });
+
+  // ---------- слои: контролы ----------
+  (function(){
+    var box=$("layers");
+    LAYERS.forEach(function(k){
+      var d=document.createElement("div"); d.className="ctl";
+      d.innerHTML='<div class="lab"><label for="L_'+k+'">'+LNAME[k]+'</label><span class="val" id="LV_'+k+'"></span></div>'+
+        '<input id="L_'+k+'" type="range" min="0" max="100" step="5">';
+      box.appendChild(d);
+      var r=d.querySelector("input");
+      r.addEventListener("input",function(){
+        S.layers[k]=parseInt(this.value,10); showLayer(k);
+        build(); if(ctx.state==="suspended") ctx.resume();
+        syncLayers(); save();
+      });
+      showLayer(k);
+    });
+    function showLayer(k){
+      var v=S.layers[k]||0; $("L_"+k).value=v;
+      $("LV_"+k).textContent=v?v+" %":"выкл";
+    }
+    $("layersOff").addEventListener("click",function(){
+      LAYERS.forEach(function(k){ S.layers[k]=0; showLayer(k); });
+      syncLayers(); save();
+    });
+  })();
+
+  // ---------- сцена ----------
+  var cv=$("scene"),g=cv.getContext("2d"),trail=[],buf=new Uint8Array(128),
+      idlePh=0,lastT=performance.now();
+  var reduce=window.matchMedia&&window.matchMedia("(prefers-reduced-motion: reduce)").matches;
+  function css(v){return getComputedStyle(document.documentElement).getPropertyValue(v).trim();}
+  function resize(){
+    var r=cv.getBoundingClientRect(),dpr=Math.min(window.devicePixelRatio||1,2);
+    cv.width=Math.round(r.width*dpr); cv.height=Math.round(r.height*dpr);
+  }
+  window.addEventListener("resize",resize); resize();
+  function mix(a,b,t){
+    function p(h){h=h.replace("#","");return[parseInt(h.substr(0,2),16),parseInt(h.substr(2,2),16),parseInt(h.substr(4,2),16)];}
+    var A=p(a),B=p(b);return"rgb("+A.map(function(x,i){return Math.round(x+(B[i]-x)*t);}).join(",")+")";
+  }
+  function frame(now){
+    var dt=(now-lastT)/1000; lastT=now;
+    var ph;
+    if(ctx){ ph=phaseAt(ctx.currentTime); } else { idlePh+=dt/S.period; ph=idlePh; }
+    var a=ph*2*Math.PI,W=cv.width,H=cv.height,cx=W/2,cy=H/2,R=Math.min(W,H)*0.36;
+    var fg=css("--fg"),dim=css("--dim"),line=css("--line"),acc=css("--accent"),warm=css("--warm");
+    var level=0;
+    var anyLayer=LAYERS.some(function(k){return S.layers[k]>0;}); var live=playing||(ctx&&anyLayer);
+    if(ana&&live){ana.getByteFrequencyData(buf);var s=0;for(var i=0;i<48;i++)s+=buf[i];level=Math.min(1,s/48/140);}
+    g.clearRect(0,0,W,H);
+    var x,y,lr,size=1;
+    if(S.mode==="orbit"){
+      g.strokeStyle=line; g.lineWidth=Math.max(1,W/400); g.setLineDash([W/160,W/110]);
+      g.beginPath(); g.arc(cx,cy,R,0,Math.PI*2); g.stroke(); g.setLineDash([]);
+      x=cx+R*Math.sin(a); y=cy-R*Math.cos(a); lr=Math.sin(a);
+      size=1+0.35*(S.height/100)*Math.sin(a/3);
+      var d=((a*180/Math.PI)%360+360)%360;
+      $("deg").textContent=Math.round(d)+"°";
+    }else{
+      g.strokeStyle=line; g.lineWidth=Math.max(1,W/400);
+      g.beginPath(); g.moveTo(cx-R,cy); g.lineTo(cx+R,cy); g.stroke();
+      lr=(S.width/100)*Math.sin(a); x=cx+R*lr; y=cy;
+      $("deg").textContent=Math.abs(lr)<0.04?"центр":(lr<0?"Л ":"П ")+Math.round(Math.abs(lr)*100)+"%";
+    }
+    // голова сверху: нос смотрит вверх
+    var hr=R*0.24;
+    g.fillStyle=css("--panel-2"); g.strokeStyle=dim; g.lineWidth=Math.max(1.5,W/320);
+    g.beginPath(); g.ellipse(cx-hr*1.02,cy,hr*0.16,hr*0.32,0,0,Math.PI*2); g.fill(); g.stroke();
+    g.beginPath(); g.ellipse(cx+hr*1.02,cy,hr*0.16,hr*0.32,0,0,Math.PI*2); g.fill(); g.stroke();
+    g.beginPath(); g.arc(cx,cy,hr,0,Math.PI*2); g.fill(); g.stroke();
+    g.beginPath(); g.moveTo(cx-hr*0.18,cy-hr*0.94); g.lineTo(cx,cy-hr*1.22); g.lineTo(cx+hr*0.18,cy-hr*0.94); g.stroke();
+    g.fillStyle=dim; g.font=Math.round(W/36)+"px "+css("--mono").split(",")[0];
+    g.textAlign="center"; g.textBaseline="middle";
+    g.fillText("Л",cx-hr*1.55,cy); g.fillText("П",cx+hr*1.55,cy);
+    // след
+    if(!reduce){ trail.push([x,y]); if(trail.length>26) trail.shift(); } else trail=[[x,y]];
+    var col=mix(warm,acc,(lr+1)/2);
+    for(var j=0;j<trail.length-1;j++){
+      g.globalAlpha=(j/trail.length)*0.35*(live?1:0.5);
+      g.fillStyle=col; g.beginPath(); g.arc(trail[j][0],trail[j][1],W/90*(j/trail.length),0,Math.PI*2); g.fill();
+    }
+    g.globalAlpha=1;
+    var r=W/34*size*(1+level*0.6);
+    g.shadowColor=col; g.shadowBlur=live?W/22*(0.6+level):0;
+    g.fillStyle=live?col:dim; g.beginPath(); g.arc(x,y,r,0,Math.PI*2); g.fill();
+    g.shadowBlur=0;
+    requestAnimationFrame(frame);
+  }
+
+  syncUI(); render(); requestAnimationFrame(frame);
+})();
+</script>
+
+<script>
+if("serviceWorker" in navigator){ window.addEventListener("load",function(){ navigator.serviceWorker.register("sw.js").catch(function(){}); }); }
+</script>
+</body>
+</html>
